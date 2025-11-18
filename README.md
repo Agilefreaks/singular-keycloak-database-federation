@@ -5,7 +5,7 @@
 ## Build
 
 ```bash
-  mvn clean package
+  docker compose up
 ```
 
 ## Add to keycloak

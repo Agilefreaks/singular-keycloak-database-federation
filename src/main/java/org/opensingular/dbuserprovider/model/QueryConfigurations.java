@@ -12,6 +12,7 @@ public class QueryConfigurations {
     private final String findBySearchTerm;
     private final int findBySearchTermParamsCount;
     private final String findPasswordHash;
+    private final int findPasswordHashParamsCount;
     private final String hashFunction;
     private final RDBMS  RDBMS;
     private final boolean allowKeycloakDelete;
@@ -26,6 +27,7 @@ public class QueryConfigurations {
         this.findBySearchTerm = findBySearchTerm;
         this.findBySearchTermParamsCount = (int)findBySearchTerm.chars().filter(ch -> ch == '?').count();
         this.findPasswordHash = findPasswordHash;
+        this.findPasswordHashParamsCount = (int)findPasswordHash.chars().filter(ch -> ch == '?').count();
         this.hashFunction = hashFunction;
         this.RDBMS = RDBMS;
         this.allowKeycloakDelete = allowKeycloakDelete;
@@ -66,6 +68,10 @@ public class QueryConfigurations {
 
     public String getFindPasswordHash() {
         return findPasswordHash;
+    }
+
+    public int getFindPasswordHashParamsCount() {
+        return findPasswordHashParamsCount;
     }
 
     public String getHashFunction() {

@@ -22,7 +22,7 @@ import java.util.Map;
 @AutoService(UserStorageProviderFactory.class)
 public class DBUserStorageProviderFactory implements UserStorageProviderFactory<DBUserStorageProvider> {
     
-    private static final String PARAMETER_PLACEHOLDER_HELP = "Use '?' as parameter placeholder character (replaced only once). ";
+    private static final String PARAMETER_PLACEHOLDER_HELP = "Use '?' as parameter placeholder character (supports multiple placeholders). ";
     private static final String DEFAULT_HELP_TEXT          = "Select to query all users you must return at least: \"id\". " +
                                                              "            \"username\"," +
                                                              "            \"email\" (optional)," +
@@ -223,9 +223,9 @@ public class DBUserStorageProviderFactory implements UserStorageProviderFactory<
                                            .property()
                                            .name("findPasswordHash")
                                            .label("Find password hash (blowfish or hash digest hex) SQL query")
-                                           .helpText(DEFAULT_HELP_TEXT + String.format(PARAMETER_HELP, "user username") + PARAMETER_PLACEHOLDER_HELP)
+                                           .helpText(DEFAULT_HELP_TEXT + String.format(PARAMETER_HELP, "user username or email") + PARAMETER_PLACEHOLDER_HELP)
                                            .type(ProviderConfigProperty.STRING_TYPE)
-                                           .defaultValue("select hash_pwd from users where \"username\" = ? ")
+                                           .defaultValue("select hash_pwd from users where \"username\" = ? or \"email\" = ?")
                                            .add()
                                            .property()
                                            .name("hashFunction")

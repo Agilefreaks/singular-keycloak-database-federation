@@ -1,0 +1,10 @@
+services:
+  maven:
+    image: maven:3.9.9-eclipse-temurin-17
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - ${HOME}/.m2:/root/.m2
+    command: mvn clean package
+    environment:
+      - MAVEN_CONFIG=/root/.m2

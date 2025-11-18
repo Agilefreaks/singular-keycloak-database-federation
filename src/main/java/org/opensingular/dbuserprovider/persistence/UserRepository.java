@@ -179,8 +179,8 @@ public class UserRepository {
         return doQuery(queryConfigurations.getFindBySearchTerm(), pageable, this::readMap, searchTermParams(search));
     }
     
-    public boolean validateCredentials(String username, String password) {
-        String hash = Optional.ofNullable(doQuery(queryConfigurations.getFindPasswordHash(), null, this::readString, username)).orElse("");
+    public boolean validateCredentials(String username, String email, String password) {
+        String hash = Optional.ofNullable(doQuery(queryConfigurations.getFindPasswordHash(), null, this::readString, passwordQueryParams(username, email))).orElse("");
         if (queryConfigurations.isBlowfish()) {
             return !hash.isEmpty() && BCrypt.checkpw(password, hash);
         } else if (queryConfigurations.isArgon2()) {
@@ -198,9 +198,27 @@ public class UserRepository {
             return Objects.equals(Hex.encodeHexString(digest.digest(pwdBytes)), hash);
         }
     }
-    
+
     public boolean updateCredentials(String username, String password) {
         throw new NotImplementedException("Password update not supported");
+    }
+
+    private Object[] passwordQueryParams(String username, String email) {
+        int paramsCount = queryConfigurations.getFindPasswordHashParamsCount();
+        if (paramsCount == 0) {
+            return new Object[0];
+        }
+        if (paramsCount == 1) {
+            return new Object[] {username};
+        }
+        String emailOrUsername = (email != null && !email.isEmpty()) ? email : username;
+        Object[] params = new Object[paramsCount];
+        params[0] = username;
+        params[1] = emailOrUsername;
+        if (paramsCount > 2) {
+            Arrays.fill(params, 2, paramsCount, emailOrUsername);
+        }
+        return params;
     }
     
     public boolean removeUser() {

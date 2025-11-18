@@ -17,6 +17,7 @@ import org.opensingular.dbuserprovider.model.QueryConfigurations;
 import org.opensingular.dbuserprovider.model.UserAdapter;
 import org.opensingular.dbuserprovider.persistence.DataSourceProvider;
 import org.opensingular.dbuserprovider.persistence.UserRepository;
+import org.opensingular.dbuserprovider.service.UserMigrationService;
 import org.opensingular.dbuserprovider.util.PagingUtil;
 
 import java.util.List;
@@ -31,12 +32,14 @@ public class DBUserStorageProvider implements UserStorageProvider,
     private final KeycloakSession session;
     private final ComponentModel  model;
     private final UserRepository  repository;
+    private final UserMigrationService migrationService;
     private final boolean allowDatabaseToOverwriteKeycloak;
 
     DBUserStorageProvider(KeycloakSession session, ComponentModel model, DataSourceProvider dataSourceProvider, QueryConfigurations queryConfigurations) {
         this.session    = session;
         this.model      = model;
         this.repository = new UserRepository(dataSourceProvider, queryConfigurations);
+        this.migrationService = new UserMigrationService(session);
         this.allowDatabaseToOverwriteKeycloak = queryConfigurations.getAllowDatabaseToOverwriteKeycloak();
     }
     
@@ -83,9 +86,15 @@ public class DBUserStorageProvider implements UserStorageProvider,
             ((CachedUserModel) user).invalidate();
           }
         }
-        return repository.validateCredentials(dbUser.getUsername(), dbUser.getEmail(), cred.getChallengeResponse());
+        boolean credentialsValid = repository.validateCredentials(dbUser.getUsername(), dbUser.getEmail(), cred.getChallengeResponse());
+
+        if (credentialsValid) {
+            migrationService.migrateUserIfNeeded(realm, dbUser, cred);
+        }
+
+        return credentialsValid;
     }
-    
+
     @Override
     public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input) {
         

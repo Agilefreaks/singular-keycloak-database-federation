@@ -1,6 +1,7 @@
 package org.opensingular.dbuserprovider;
 
 import lombok.extern.jbosslog.JBossLog;
+import oracle.jdbc.proxy._Proxy_;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.credential.CredentialInput;
 import org.keycloak.credential.CredentialInputUpdater;
@@ -17,6 +18,7 @@ import org.opensingular.dbuserprovider.model.QueryConfigurations;
 import org.opensingular.dbuserprovider.model.UserAdapter;
 import org.opensingular.dbuserprovider.persistence.DataSourceProvider;
 import org.opensingular.dbuserprovider.persistence.UserRepository;
+import org.opensingular.dbuserprovider.service.UserGroupSyncService;
 import org.opensingular.dbuserprovider.util.PagingUtil;
 
 import java.util.List;
@@ -31,12 +33,14 @@ public class DBUserStorageProvider implements UserStorageProvider,
     private final KeycloakSession session;
     private final ComponentModel  model;
     private final UserRepository  repository;
+    private final UserGroupSyncService groupSyncService;
     private final boolean allowDatabaseToOverwriteKeycloak;
 
     DBUserStorageProvider(KeycloakSession session, ComponentModel model, DataSourceProvider dataSourceProvider, QueryConfigurations queryConfigurations) {
         this.session    = session;
         this.model      = model;
         this.repository = new UserRepository(dataSourceProvider, queryConfigurations);
+        this.groupSyncService = new UserGroupSyncService(session);
         this.allowDatabaseToOverwriteKeycloak = queryConfigurations.getAllowDatabaseToOverwriteKeycloak();
     }
     
@@ -85,7 +89,7 @@ public class DBUserStorageProvider implements UserStorageProvider,
         }
         return repository.validateCredentials(dbUser.getUsername(), dbUser.getEmail(), cred.getChallengeResponse());
     }
-    
+
     @Override
     public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input) {
         
@@ -144,7 +148,9 @@ public class DBUserStorageProvider implements UserStorageProvider,
             log.debugv("findUserById returned null, skipping creation of UserAdapter, expect login error");
             return null;
         } else {
-            return new UserAdapter(session, realm, model, user, allowDatabaseToOverwriteKeycloak);
+            UserModel dbUser = new UserAdapter(session, realm, model, user, allowDatabaseToOverwriteKeycloak);
+            groupSyncService.assignGroupsToFederatedUser(realm, dbUser);
+            return dbUser;
         }
     }
     

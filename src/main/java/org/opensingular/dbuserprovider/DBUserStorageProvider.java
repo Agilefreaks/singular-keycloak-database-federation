@@ -17,7 +17,7 @@ import org.opensingular.dbuserprovider.model.QueryConfigurations;
 import org.opensingular.dbuserprovider.model.UserAdapter;
 import org.opensingular.dbuserprovider.persistence.DataSourceProvider;
 import org.opensingular.dbuserprovider.persistence.UserRepository;
-import org.opensingular.dbuserprovider.service.UserMigrationService;
+import org.opensingular.dbuserprovider.service.UserGroupSyncService;
 import org.opensingular.dbuserprovider.util.PagingUtil;
 
 import java.util.List;
@@ -32,14 +32,14 @@ public class DBUserStorageProvider implements UserStorageProvider,
     private final KeycloakSession session;
     private final ComponentModel  model;
     private final UserRepository  repository;
-    private final UserMigrationService migrationService;
+    private final UserGroupSyncService groupSyncService;
     private final boolean allowDatabaseToOverwriteKeycloak;
 
     DBUserStorageProvider(KeycloakSession session, ComponentModel model, DataSourceProvider dataSourceProvider, QueryConfigurations queryConfigurations) {
         this.session    = session;
         this.model      = model;
         this.repository = new UserRepository(dataSourceProvider, queryConfigurations);
-        this.migrationService = new UserMigrationService(session);
+        this.groupSyncService = new UserGroupSyncService(session);
         this.allowDatabaseToOverwriteKeycloak = queryConfigurations.getAllowDatabaseToOverwriteKeycloak();
     }
     
@@ -89,7 +89,7 @@ public class DBUserStorageProvider implements UserStorageProvider,
         boolean credentialsValid = repository.validateCredentials(dbUser.getUsername(), dbUser.getEmail(), cred.getChallengeResponse());
 
         if (credentialsValid) {
-            migrationService.migrateUserIfNeeded(realm, dbUser, cred);
+            groupSyncService.assignGroupsToFederatedUser(realm, dbUser);
         }
 
         return credentialsValid;

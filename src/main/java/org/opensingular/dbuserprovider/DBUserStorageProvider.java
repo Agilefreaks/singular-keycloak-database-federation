@@ -1,6 +1,7 @@
 package org.opensingular.dbuserprovider;
 
 import lombok.extern.jbosslog.JBossLog;
+import oracle.jdbc.proxy._Proxy_;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.credential.CredentialInput;
 import org.keycloak.credential.CredentialInputUpdater;
@@ -86,13 +87,7 @@ public class DBUserStorageProvider implements UserStorageProvider,
             ((CachedUserModel) user).invalidate();
           }
         }
-        boolean credentialsValid = repository.validateCredentials(dbUser.getUsername(), dbUser.getEmail(), cred.getChallengeResponse());
-
-        if (credentialsValid) {
-            groupSyncService.assignGroupsToFederatedUser(realm, dbUser);
-        }
-
-        return credentialsValid;
+        return repository.validateCredentials(dbUser.getUsername(), dbUser.getEmail(), cred.getChallengeResponse());
     }
 
     @Override
@@ -153,7 +148,9 @@ public class DBUserStorageProvider implements UserStorageProvider,
             log.debugv("findUserById returned null, skipping creation of UserAdapter, expect login error");
             return null;
         } else {
-            return new UserAdapter(session, realm, model, user, allowDatabaseToOverwriteKeycloak);
+            UserModel dbUser = new UserAdapter(session, realm, model, user, allowDatabaseToOverwriteKeycloak);
+            groupSyncService.assignGroupsToFederatedUser(realm, dbUser);
+            return dbUser;
         }
     }
     

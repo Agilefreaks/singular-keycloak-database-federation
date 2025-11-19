@@ -24,12 +24,8 @@ public class UserGroupSyncService {
         String roles = federatedUser.getFirstAttribute("roles");
         log.debugv("Syncing groups for federated user: username={0}, roles={1}", federatedUser.getUsername(), roles);
 
-        Set<String> finalGroupNames = parseRolesAttribute(roles);
-        Set<String> currentGroupNames = getCurrentGroupNames(federatedUser);
-        Set<GroupModel> currentGroups = federatedUser.getGroupsStream().collect(Collectors.toSet());
-
-        addUserToMissingGroups(realm, federatedUser, finalGroupNames, currentGroupNames);
-        removeUserFromExtraGroups(federatedUser, finalGroupNames, currentGroups);
+        Set<String> targetGroupNames = parseRolesAttribute(roles);
+        syncUserGroups(realm, federatedUser, targetGroupNames);
     }
 
     private Set<String> parseRolesAttribute(String roles) {
@@ -43,37 +39,31 @@ public class UserGroupSyncService {
                 .collect(Collectors.toSet());
     }
 
-    private Set<String> getCurrentGroupNames(UserModel user) {
-        return user.getGroupsStream()
-                .map(GroupModel::getName)
-                .collect(Collectors.toSet());
-    }
+    private void syncUserGroups(RealmModel realm, UserModel user, Set<String> targetGroupNames) {
+        Set<String> groupsToAdd = new HashSet<>(targetGroupNames);
+        Set<GroupModel> currentGroups = user.getGroupsStream().collect(Collectors.toSet());
 
-    private void addUserToMissingGroups(RealmModel realm, UserModel user,
-                                        Set<String> targetGroupNames, Set<String> currentGroupNames) {
-        for (String targetGroupName : targetGroupNames) {
-            if (!currentGroupNames.contains(targetGroupName)) {
-                GroupModel group = session.groups().getGroupByName(realm, null, targetGroupName);
-
-                if (group == null) {
-                    log.warnv("Group not found for role: role={0}, username={1}", targetGroupName, user.getUsername());
-                    continue;
-                }
-
-                user.joinGroup(group);
-                log.debugv("Joined group: group={0}, username={1}", targetGroupName, user.getUsername());
-            }
-        }
-    }
-
-    private void removeUserFromExtraGroups(UserModel user, Set<String> targetGroupNames,
-                                           Set<GroupModel> currentGroups) {
         for (GroupModel currentGroup : currentGroups) {
             String currentGroupName = currentGroup.getName();
-            if (!targetGroupNames.contains(currentGroupName)) {
+
+            if (targetGroupNames.contains(currentGroupName)) {
+                groupsToAdd.remove(currentGroupName);
+            } else {
                 user.leaveGroup(currentGroup);
                 log.debugv("Left group: group={0}, username={1}", currentGroupName, user.getUsername());
             }
+        }
+
+        for (String groupName : groupsToAdd) {
+            GroupModel group = session.groups().getGroupByName(realm, null, groupName);
+
+            if (group == null) {
+                log.warnv("Group not found for role: role={0}, username={1}", groupName, user.getUsername());
+                continue;
+            }
+
+            user.joinGroup(group);
+            log.debugv("Joined group: group={0}, username={1}", groupName, user.getUsername());
         }
     }
 }

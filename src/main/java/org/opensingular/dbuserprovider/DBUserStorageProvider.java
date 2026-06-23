@@ -49,6 +49,12 @@ public class DBUserStorageProvider implements UserStorageProvider,
         return users.stream()
                     .map(m -> new UserAdapter(session, realm, model, m, allowDatabaseToOverwriteKeycloak));
     }
+
+    private UserModel toUserModelWithGroupSync(RealmModel realm, Map<String, String> user) {
+        UserModel dbUser = new UserAdapter(session, realm, model, user, allowDatabaseToOverwriteKeycloak);
+        groupSyncService.assignGroupsToFederatedUser(realm, dbUser);
+        return dbUser;
+    }
     
     
     @Override
@@ -147,11 +153,8 @@ public class DBUserStorageProvider implements UserStorageProvider,
         if (user == null) {
             log.debugv("findUserById returned null, skipping creation of UserAdapter, expect login error");
             return null;
-        } else {
-            UserModel dbUser = new UserAdapter(session, realm, model, user, allowDatabaseToOverwriteKeycloak);
-            groupSyncService.assignGroupsToFederatedUser(realm, dbUser);
-            return dbUser;
         }
+        return toUserModelWithGroupSync(realm, user);
     }
     
     @Override
@@ -159,7 +162,7 @@ public class DBUserStorageProvider implements UserStorageProvider,
         
         log.infov("lookup user by username: realm={0} username={1}", realm.getId(), username);
         
-        return repository.findUserByUsername(username).map(u -> new UserAdapter(session, realm, model, u, allowDatabaseToOverwriteKeycloak)).orElse(null);
+        return repository.findUserByUsername(username).map(u -> toUserModelWithGroupSync(realm, u)).orElse(null);
     }
     
     @Override
@@ -167,7 +170,7 @@ public class DBUserStorageProvider implements UserStorageProvider,
         
         log.infov("lookup user by email: realm={0} email={1}", realm.getId(), email);
         
-        return repository.findUserByEmail(email).map(u -> new UserAdapter(session, realm, model, u, allowDatabaseToOverwriteKeycloak)).orElse(null);
+        return repository.findUserByEmail(email).map(u -> toUserModelWithGroupSync(realm, u)).orElse(null);
     }
     
     @Override
